@@ -15,19 +15,31 @@ class MusdbData:
             db = self.train_db
         else:
             db = self.db
+
+        p2 = 1
         
         for i in range(N):
             track = random.choice(db.tracks)
             track.chunk_duration = chunk_duration
             track.chunk_start = random.uniform(0, track.duration - track.chunk_duration)
             
-            mix_track = track.audio.T
-            vocal_track = track.targets['vocals'].audio.T
-            accompaniment_track = track.targets['accompaniment'].audio.T
+            mix_track = track.audio
+            vocal_track = track.targets['vocals'].audio
+            accompaniment_track = track.targets['accompaniment'].audio
 
-            print(mix_track.shape)
+            if p2 == 1:
+                while p2 < mix_track.shape[0]:
+                    p2 *= 2
+                p2 /= 2
+                p2 = int(p2)
 
-            yield mix_track, vocal_track, accompaniment_track        
+            yield (
+                mix_track[:p2,:], 
+                (
+                    vocal_track[:p2,:], 
+                    accompaniment_track[:p2,:]
+                )
+            )
 
     def random_dataset(self, N, chunk_duration, subset=None):
         def gen():
@@ -36,9 +48,11 @@ class MusdbData:
         return tf.data.Dataset.from_generator(
             gen,
             output_signature=(
-                tf.TensorSpec(shape=(2,None), dtype=tf.float32),
-                tf.TensorSpec(shape=(2,None), dtype=tf.float32),
-                tf.TensorSpec(shape=(2,None), dtype=tf.float32),
+                tf.TensorSpec(shape=(None,2), dtype=tf.float32),
+                (
+                    tf.TensorSpec(shape=(None,2), dtype=tf.float32),
+                    tf.TensorSpec(shape=(None,2), dtype=tf.float32),
+                )
             )
         )
 
