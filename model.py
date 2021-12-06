@@ -30,19 +30,12 @@ def unet(input_shape, nfs, minf=20, ks=7):
     x = tfkl.Conv1D(filters=nfs[-1], kernel_size=ks, padding='same', activation='relu')(x)
     x = tfkl.Dropout(0.1)(x)    
     
-    y1 = x
-    y2 = x
-        
     for li in range(num_layers-2,-1,-1):    
-        y1 = upconv_block(y1, layer_outputs[li], nfs[li], ks)
+        x = upconv_block(x, layer_outputs[li], nfs[li], ks)
 
-    for li in range(num_layers-2,-1,-1):
-        y2 = upconv_block(y2, layer_outputs[li], nfs[li], ks)
+    x = tfkl.Conv1D(filters=2, kernel_size=ks, padding='same', name='target')(x)
 
-    y1 = tfkl.Conv1D(filters=2, kernel_size=ks, padding='same', name='vocals')(y1)
-    y2 = tfkl.Conv1D(filters=2, kernel_size=ks, padding='same', name='accompaniment')(y2)
-
-    return tfk.Model(inputs=in_x, outputs=[y1,y2])
+    return tfk.Model(inputs=in_x, outputs=x)
 
 if __name__ == "__main__":
     model = unet((1000000,2), nfs=[10,20,30,40,50])

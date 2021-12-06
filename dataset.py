@@ -3,14 +3,16 @@ import random
 import tensorflow as tf
 
 class MusdbData:
-    def __init__(self, musdb_root):
-        self.db = musdb.DB(root=musdb_root)    
-        self.test_db = musdb.DB(root=musdb_root, subsets=["test"])    
-        self.train_db = musdb.DB(root=musdb_root, subsets=["train"])    
-
-    def random_iterator(self, N, chunk_duration, subset=None):
-        if subset == "test":
-            db = self.test_db
+    def __init__(self, musdb_root, is_wav, target):        
+        self.target = target
+        
+        self.db = musdb.DB(root=musdb_root, is_wav=is_wav)    
+        self.train_db = musdb.DB(root=musdb_root, is_wav=is_wav, subsets="train", split="train")        
+        self.val_db = musdb.DB(root=musdb_root, is_wav=is_wav, subsets="train", split="valid")
+                
+    def random_iterator(self, N, chunk_duration, subset=None, split=None):
+        if subset == "val":
+            db = self.val_db
         elif subset == "train":
             db = self.train_db
         else:
@@ -24,21 +26,17 @@ class MusdbData:
             track.chunk_start = random.uniform(0, track.duration - track.chunk_duration)
             
             mix_track = track.audio
-            vocal_track = track.targets['vocals'].audio
-            accompaniment_track = track.targets['accompaniment'].audio
+            target_track = track.targets[self.target].audio            
 
             if p2 == 1:
                 while p2 < mix_track.shape[0]:
                     p2 *= 2
                 p2 /= 2
                 p2 = int(p2)
-
+            
             yield (
-                mix_track[:p2,:], 
-                (
-                    vocal_track[:p2,:], 
-                    accompaniment_track[:p2,:]
-                )
+                mix_track[:p2,:],
+                target_track[:p2,:]
             )
 
     def random_dataset(self, N, chunk_duration, subset=None):
@@ -49,10 +47,7 @@ class MusdbData:
             gen,
             output_signature=(
                 tf.TensorSpec(shape=(None,2), dtype=tf.float32),
-                (
-                    tf.TensorSpec(shape=(None,2), dtype=tf.float32),
-                    tf.TensorSpec(shape=(None,2), dtype=tf.float32),
-                )
+                tf.TensorSpec(shape=(None,2), dtype=tf.float32),
             )
         )
 

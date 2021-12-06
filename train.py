@@ -1,25 +1,41 @@
+import os
+
+import tensorflow as tf
+import tensorflow.keras as tfk
+
 import model as mixmodel
 import dataset as mixdataset
-import tensorflow.keras as tfk
+
 
 def train():
     N = 2048
-    epochs = 20
+    epochs = 100
     batch_size = 4
-    unet_filters = [ 30, 60, 90, 120, 150, 180, 210 ]
+    seq_dur = 3.0
+    target = 'drums'
+    unet_filters = [ 20, 40, 60, 80, 100, 120, 140, 160 ] #, 180, 200 ]
 
-    ds = mixdataset.MusdbData('D:/MUSDB18/Full')
-    train_ds = ds.random_dataset(N, 1.0, subset='train')
-    test_ds = ds.random_dataset(batch_size*4, 1.0, subset='test')
+    checkpoint_path = "training/cp-{epoch:04d}.ckpt"
+    checkpoint_dir = os.path.dirname(checkpoint_path)
 
-    model = mixmodel.unet((32768,2), unet_filters)
-    model.compile(loss=['mse','mse'], optimizer=tfk.optimizers.Adam(lr=0.001))
-    print(model.summary())
+    #ds = mixdataset.MusdbData('D:/MUSDB18/FullHQ', is_wav=True)
+    ds = mixdataset.MusdbData('D:/MUSDB18/Full', is_wav=False, target=target)
+    train_ds = ds.random_dataset(N, seq_dur, subset='train')
+    val_ds = ds.random_dataset(batch_size*16, seq_dur, subset='val')
 
-    my_callbacks = [
-        tfk.callbacks.ModelCheckpoint(filepath='model.{epoch:02d}.h5'),        
+    model = mixmodel.unet((131072,2), unet_filters)
+
+    latest = tf.train.latest_checkpoint(checkpoint_dir)
+    if latest:
+        tfk.models.load_model(latest)
+    else:
+        model.compile(loss='mse', optimizer=tfk.optimizers.Adam(lr=0.001))    
+
+    my_callbacks = [ 
+        tfk.callbacks.ModelCheckpoint(filepath=checkpoint_path, save_best_only=True),
+        tfk.callbacks.EarlyStopping(patience=5)
     ]
 
-    model.fit(train_ds.batch(batch_size), epochs=epochs, validation_data=test_ds.batch(batch_size),callbacks=my_callbacks)
+    model.fit(train_ds.batch(batch_size), epochs=epochs, validation_data=val_ds.batch(batch_size),callbacks=my_callbacks)
 
 if __name__ == "__main__": train()
