@@ -9,8 +9,10 @@ class MusdbData:
         self.db = musdb.DB(root=musdb_root, is_wav=is_wav)    
         self.train_db = musdb.DB(root=musdb_root, is_wav=is_wav, subsets="train", split="train")        
         self.val_db = musdb.DB(root=musdb_root, is_wav=is_wav, subsets="train", split="valid")
-                
-    def random_iterator(self, N, chunk_duration, subset=None, split=None):
+                    
+    def random_iterator(self, N, chunk_duration, subset=None, split=None, augment=True):        
+        gain = random.uniform(0.25,1.25) if augment else 1.0
+
         if subset == "val":
             db = self.val_db
         elif subset == "train":
@@ -35,13 +37,13 @@ class MusdbData:
                 p2 = int(p2)
             
             yield (
-                mix_track[:p2,:],
-                target_track[:p2,:]
+                mix_track[:p2,:] * gain,
+                target_track[:p2,:] * gain
             )
 
-    def random_dataset(self, N, chunk_duration, subset=None):
+    def random_dataset(self, N, chunk_duration, subset=None, augment=True):
         def gen():
-            yield from self.random_iterator(N, chunk_duration, subset)
+            yield from self.random_iterator(N, chunk_duration, subset, augment)
 
         return tf.data.Dataset.from_generator(
             gen,
@@ -52,7 +54,10 @@ class MusdbData:
         )
 
 if __name__ == "__main__":
-    ds = MusdbData('D:/MUSDB18/Full')
-    tfds = ds.random_dataset(4, 5.0)
-    print(tfds)
-    print(list(tfds.take(1)))
+    ds = MusdbData('D:/MUSDB18/Full', is_wav=False, target='drums')
+    tfds = ds.random_ft_dataset(4, 5.0)    
+    
+    datum = list(tfds.take(1))[0][0].numpy()
+    print(datum)
+
+    print(datum.min(),datum.max())
