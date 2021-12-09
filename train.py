@@ -49,9 +49,10 @@ def train():
     )
 
 def train_ft():
-    N = 2048
+    N_tracks = 512
+    samples_per_track = 8
     epochs = 100
-    batch_size = 4
+    batch_size = 16
     seq_dur = 3.0
     target = 'drums'
     unet_filters =[ 32, 64, 128, 256, 512 ]
@@ -74,8 +75,8 @@ def train_ft():
 
     #ds = mixdataset.MusdbData('D:/MUSDB18/FullHQ', is_wav=True)
     ds = mixdataset.MusdbData('D:/MUSDB18/Full', is_wav=False, target=target)
-    train_ds = ds.random_dataset(N, seq_dur, subset='train')
-    val_ds = ds.random_dataset(batch_size*16, seq_dur, subset='val', augment=False)
+    train_ds = ds.random_dataset(N_tracks, samples_per_track, seq_dur, subset='train')
+    val_ds = ds.random_dataset(batch_size*4, samples_per_track, seq_dur, subset='val', augment=False)
         
     class CustomCallback(tfk.callbacks.Callback):
         def on_epoch_end(self, epoch, logs=None):
