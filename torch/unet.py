@@ -4,12 +4,12 @@ from torch import nn
 from pytorch_lightning.core.lightning import LightningModule
 
 def downconv_block(nf_in, nf, ks):
-    return nn.Sequential(
-        nn.Conv1d(nf_in, nf, ks, dilation=4, stride=4, padding=2*(ks-1)),
+    return nn.Sequential(        
+        nn.Conv1d(nf_in, nf, ks, dilation=4, stride=4, padding=2*(ks-1)),        
         nn.ReLU(),
         nn.Conv1d(nf, nf, ks, padding='same'),
         nn.ReLU(),
-        nn.Conv1d(nf, nf, ks, padding='same'),
+        nn.Conv1d(nf, nf, ks, padding='same')
     )
 
 def upconv_block(nf_in, nf, ks):    
@@ -28,16 +28,18 @@ def out_block(ks):
         nn.Conv1d(2, 2, 1)
     )
 
-class UNetAudio(LightningModule):
+class UNet(LightningModule):
     def __init__(self):
         super().__init__()
 
-        self.nfs = [ 2, 32, 64, 96, 128, 160, 192 ]
+        self.ks = 13
+        self.nfs = [ 2, 32, 32, 32, 32, 32, 32, 32, 32 ]
+        
         nlayers = len(self.nfs)
 
-        self.down_blocks = nn.ModuleList([ downconv_block(self.nfs[i], self.nfs[i+1], ks=9) for i in range(nlayers-1) ])
-        self.up_blocks = nn.ModuleList([ upconv_block(2*self.nfs[-i-1], self.nfs[-i-2], ks=9) for i in range(nlayers-1) ])
-        self.out_block = out_block(ks=9)
+        self.down_blocks = nn.ModuleList([ downconv_block(self.nfs[i], self.nfs[i+1], ks=self.ks) for i in range(nlayers-1) ])
+        self.up_blocks = nn.ModuleList([ upconv_block(2*self.nfs[-i-1], self.nfs[-i-2], ks=self.ks) for i in range(nlayers-1) ])
+        self.out_block = out_block(ks=self.ks)
 
     def forward(self, x):
         outputs = []
@@ -46,7 +48,8 @@ class UNetAudio(LightningModule):
             outputs.append(x)
         
         for u,o in zip(self.up_blocks, outputs[::-1]):
-            x= torch.cat((x,o),dim=1)
+            x = torch.cat((x,o),dim=1)
+            x = nn.Dropout(0.2)(x)
             x = u(x)
 
         x = self.out_block(x)        
@@ -70,12 +73,3 @@ class UNetAudio(LightningModule):
         optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
         return optimizer
 
-if __name__ == "__main__":
-    net = UNetAudio()    
-    x = torch.randn(1, 2, 4096)
-    print(x.shape)
-    out = net(x)
-    print(out.shape)
-    print(net)
-
-    
