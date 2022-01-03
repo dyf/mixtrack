@@ -1,3 +1,4 @@
 *.pyc
-ckpt*
+*ckpt*
 checkpoint
+lightning_logs*
